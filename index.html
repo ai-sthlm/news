@@ -27,16 +27,23 @@
       <main>
         <div class="feed-heading">
           <h2>Hacker News · Top 100</h2>
-          <button type="button" class="refresh" @click="loadStories" :disabled="loading">
-            {{ loading ? 'Loading…' : 'Refresh' }}
-          </button>
+          <div class="feed-controls">
+            <div class="score-filters" aria-label="Minimum story score">
+              <button v-for="score in scoreFilters" :key="score" type="button" class="score-filter" :class="{ active: minimumScore === score }" :aria-pressed="minimumScore === score" @click="minimumScore = score">{{ score ? `${score}+` : 'All' }}</button>
+            </div>
+            <button type="button" class="refresh" @click="loadStories" :disabled="loading">
+              {{ loading ? 'Loading…' : 'Refresh' }}
+            </button>
+          </div>
         </div>
 
         <p v-if="error" class="notice">{{ error }}</p>
-        <p v-else-if="loading" class="notice">Fetching the latest stories from Hacker News…</p>
+        <p v-else-if="loading && !stories.length" class="notice">Fetching the latest stories from Hacker News…</p>
 
-        <ol v-else class="stories">
-          <li v-for="(story, index) in stories" :key="story.id" class="story" :class="{ 'is-open': story.commentsVisible }">
+        <p v-if="!loading && !error && stories.length && !filteredStories.length" class="notice">No loaded stories meet this score.</p>
+
+        <ol v-if="filteredStories.length" class="stories">
+          <li v-for="(story, index) in filteredStories" :key="story.id" class="story" :class="{ 'is-open': story.commentsVisible }">
             <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
             <article>
               <h3 class="story-heading">
@@ -55,6 +62,7 @@
             </article>
           </li>
         </ol>
+        <p v-if="loading && filteredStories.length" class="notice">Fetching…</p>
       </main>
 
       <footer></footer>
@@ -185,8 +193,13 @@
       }
 
       createApp({
-        data: () => ({ stories: [], loading: true, error: '' }),
+        data: () => ({ stories: [], loading: true, error: '', minimumScore: 0, scoreFilters: [0, 100, 200, 300, 400, 500] }),
         mounted() { this.loadStories(); },
+        computed: {
+          filteredStories() {
+            return this.stories.filter((story) => story.score >= this.minimumScore);
+          }
+        },
         methods: {
           discussionUrl(id) { return `https://news.ycombinator.com/item?id=${id}`; },
           compactTime,
@@ -210,15 +223,19 @@
           async loadStories() {
             this.loading = true;
             this.error = '';
+            this.stories = [];
             try {
               const ids = await fetch(`${API_ROOT}/topstories.json`).then((response) => {
                 if (!response.ok) throw new Error('Hacker News is unavailable.');
                 return response.json();
               });
-              const stories = await Promise.all(ids.slice(0, STORIES_PER_PAGE * PAGE_COUNT).map(fetchItem));
-              this.stories = stories.filter((story) => story && story.type === 'story').map((story) => ({
-                ...story, comments: null, commentsLoading: false, commentsVisible: false
-              }));
+              for (let page = 0; page < PAGE_COUNT; page += 1) {
+                const start = page * STORIES_PER_PAGE;
+                const stories = await Promise.all(ids.slice(start, start + STORIES_PER_PAGE).map(fetchItem));
+                this.stories.push(...stories.filter((story) => story && story.type === 'story').map((story) => ({
+                  ...story, comments: null, commentsLoading: false, commentsVisible: false
+                })));
+              }
             } catch (_) {
               this.error = 'Could not load Hacker News right now. Please try again shortly.';
             } finally {

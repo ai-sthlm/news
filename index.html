@@ -46,11 +46,12 @@
             <span class="rank" aria-hidden="true">{{ story.rank }}</span>
             <article>
               <h3 class="story-heading">
-                <a :href="discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">{{ story.title }}</a>
-                <a v-if="story.url" class="source-url" :href="story.url" target="_blank" rel="noopener noreferrer">{{ displayUrl(story.url) }}</a>
-                <span class="story-inline-meta">
-                  · {{ compactTime(story.time) }} · {{ story.score }} points ·
-                  <button type="button" class="comments-toggle" @click="toggleComments(story)" :aria-expanded="story.commentsVisible || false" :aria-label="`${story.commentsVisible ? 'Hide' : 'Show'} ${story.descendants || 0} comments`">{{ story.descendants || 0 }} comments</button>
+                <a :href="discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">{{ story.title }}</a>{{ ' ' }}
+                <span class="story-meta">
+                  <a v-if="story.url" class="source-url" :href="story.url" target="_blank" rel="noopener noreferrer">{{ displayUrl(story.url) }}</a>
+                  <span>· {{ compactTime(story.time) }}</span>
+                  <span>· {{ story.score }} points</span>
+                  <button type="button" class="comments-toggle" @click="toggleComments(story)" :aria-expanded="story.commentsVisible || false" :aria-label="`${story.commentsVisible ? 'Hide' : 'Show'} ${story.descendants || 0} comments`">· {{ story.descendants || 0 }} comments</button>
                 </span>
               </h3>
               <section v-if="story.commentsVisible" class="comments" :aria-label="`Comments on ${story.title}`">

@@ -37,9 +37,12 @@ GitHub Pages source before the first deployment.
 
 ## Design decisions
 
-- **Keep the feed dense.** A story's title, linked domain, score, comment
-  count, author, and compact relative time share one flowing line. The layout
+- **Keep the feed dense.** A story's title, linked domain, compact relative
+  time, score, and comment count share one flowing line. The layout
   may wrap on small screens, but it should not become a card-heavy feed.
+- **Load a useful reading window.** The initial feed fetches five 20-story
+  Hacker News windows (100 top stories) so readers can browse beyond the first
+  screen without a pagination round trip.
 - **Separate the two destinations clearly.** A story title opens its Hacker
   News item and discussion; the linked domain opens the original article. This
   makes discussion the primary interaction without hiding the source.

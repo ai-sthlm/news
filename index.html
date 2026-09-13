@@ -26,7 +26,7 @@
 
       <main>
         <div class="feed-heading">
-          <h2>Hacker News</h2>
+          <h2>Hacker News · Top 100</h2>
           <button type="button" class="refresh" @click="loadStories" :disabled="loading">
             {{ loading ? 'Loading…' : 'Refresh' }}
           </button>
@@ -43,9 +43,8 @@
                 <a :href="discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">{{ story.title }}</a>
                 <a v-if="story.url" class="source-url" :href="story.url" target="_blank" rel="noopener noreferrer">{{ displayUrl(story.url) }}</a>
                 <span class="story-inline-meta">
-                  · {{ story.score }} points ·
+                  · {{ compactTime(story.time) }} · {{ story.score }} points ·
                   <button type="button" class="comments-toggle" @click="toggleComments(story)" :aria-expanded="story.commentsVisible || false" :aria-label="`${story.commentsVisible ? 'Hide' : 'Show'} ${story.descendants || 0} comments`">{{ story.descendants || 0 }} comments</button>
-                  · {{ story.by }} · {{ compactTime(story.time) }}
                 </span>
               </h3>
               <section v-if="story.commentsVisible" class="comments" :aria-label="`Comments on ${story.title}`">
@@ -66,6 +65,8 @@
       const { createApp } = Vue;
       const API_ROOT = 'https://hacker-news.firebaseio.com/v0';
       const itemRequests = new Map();
+      const STORIES_PER_PAGE = 20;
+      const PAGE_COUNT = 5;
 
       function cleanCommentHtml(html = '') {
         const documentFragment = new DOMParser().parseFromString(html, 'text/html');
@@ -214,7 +215,7 @@
                 if (!response.ok) throw new Error('Hacker News is unavailable.');
                 return response.json();
               });
-              const stories = await Promise.all(ids.slice(0, 20).map(fetchItem));
+              const stories = await Promise.all(ids.slice(0, STORIES_PER_PAGE * PAGE_COUNT).map(fetchItem));
               this.stories = stories.filter((story) => story && story.type === 'story').map((story) => ({
                 ...story, comments: null, commentsLoading: false, commentsVisible: false
               }));

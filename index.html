@@ -113,23 +113,17 @@
         props: { comment: { type: Object, required: true } },
         data: () => ({ replies: null, loading: false, expanded: false, bodyExpanded: false }),
         computed: {
-          replyLabel() {
-            const count = this.comment.kids?.length || 0;
-            return this.expanded ? 'Hide replies' : `Show ${count} ${count === 1 ? 'reply' : 'replies'}`;
-          },
           preview() {
             return commentText(this.comment.text);
           }
         },
         template: `
           <article class="comment">
-            <p class="comment-line">
+            <button type="button" class="comment-line" @click="toggleDiscussion" :aria-expanded="bodyExpanded">
               <span class="comment-meta">{{ comment.by || 'unknown' }} · {{ compactTime(comment.time) }}</span>
               <span v-if="!bodyExpanded" class="comment-preview">{{ preview }}</span>
-              <button v-if="!bodyExpanded && preview" type="button" class="body-toggle" @click="bodyExpanded = true">More</button>
-              <button v-if="bodyExpanded" type="button" class="body-toggle" @click="bodyExpanded = false">Less</button>
-              <button v-if="comment.kids?.length" type="button" class="reply-toggle" @click="toggleReplies" :aria-expanded="expanded">{{ replyLabel }}</button>
-            </p>
+              <span class="comment-state" aria-hidden="true">{{ bodyExpanded ? '−' : '+' }}</span>
+            </button>
             <div v-if="bodyExpanded" class="comment-body" v-html="cleanCommentHtml(comment.text)"></div>
             <p v-if="loading" class="comment-status">Loading replies…</p>
             <div v-if="expanded && replies" class="replies">
@@ -140,9 +134,10 @@
         methods: {
           cleanCommentHtml,
           compactTime,
-          async toggleReplies() {
-            this.expanded = !this.expanded;
-            if (!this.expanded || this.replies !== null) return;
+          async toggleDiscussion() {
+            this.bodyExpanded = !this.bodyExpanded;
+            this.expanded = this.bodyExpanded;
+            if (!this.bodyExpanded || !this.comment.kids?.length || this.replies !== null) return;
             this.loading = true;
             try {
               const replies = await Promise.all(this.comment.kids.map(fetchItem));

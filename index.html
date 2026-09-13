@@ -36,7 +36,7 @@
         <p v-else-if="loading" class="notice">Fetching the latest stories from Hacker News…</p>
 
         <ol v-else class="stories">
-          <li v-for="(story, index) in stories" :key="story.id" class="story">
+          <li v-for="(story, index) in stories" :key="story.id" class="story" :class="{ 'is-open': story.commentsVisible }">
             <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
             <article>
               <h3 class="story-heading">

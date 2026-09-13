@@ -54,6 +54,9 @@ footer { padding: 32px 0 40px; color: var(--muted); font-size: 11px; }
 footer a { color: var(--accent); }
 @media (max-width: 600px) {
   .shell { width: calc(100% - 24px); }
+  main { margin-inline: -12px; }
+  .feed-heading { padding-inline: 12px; }
+  main > .notice { margin-inline: 12px; }
   .masthead { height: 80px; }
   .hero { min-height: 370px; padding-top: 48px; }
   body::before { background-position: center 115px; background-size: auto 400px; height: 530px; }

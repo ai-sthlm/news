@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A calmer way to browse Hacker News, from AI Sthlm.">
+    <meta name="theme-color" content="#07121c">
+    <title>AI Sthlm News</title>
+    <link rel="icon" type="image/svg+xml" href="https://ai-sthlm.github.io/assets/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://ai-sthlm.github.io/assets/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://ai-sthlm.github.io/assets/apple-touch-icon.png">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div id="app" class="shell">
+      <nav class="masthead" aria-label="Main navigation">
+        <a class="brand" href="https://ai-sthlm.github.io/">AI Sthlm</a>
+        <a class="source-link" href="https://news.ycombinator.com/" target="_blank" rel="noopener noreferrer">Hacker News ↗</a>
+      </nav>
+
+      <header class="hero">
+        <p class="eyebrow"></p>
+        <h1><span>News</span></h1>
+        <p class="intro"></p>
+      </header>
+
+      <main>
+        <div class="feed-heading">
+          <h2>Hacker News</h2>
+          <button type="button" class="refresh" @click="loadStories" :disabled="loading">
+            {{ loading ? 'Loading…' : 'Refresh' }}
+          </button>
+        </div>
+
+        <p v-if="error" class="notice">{{ error }}</p>
+        <p v-else-if="loading" class="notice">Fetching the latest stories from Hacker News…</p>
+
+        <ol v-else class="stories">
+          <li v-for="(story, index) in stories" :key="story.id" class="story">
+            <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
+            <article>
+              <h3>
+                <a :href="story.url || discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">{{ story.title }}</a>
+              </h3>
+              <p v-if="story.url" class="source-url">{{ displayUrl(story.url) }}</p>
+              <div class="story-meta-row">
+                <span class="meta">{{ story.score }} points · {{ story.descendants || 0 }} comments · {{ story.by }} · {{ compactTime(story.time) }}</span>
+                <button type="button" class="comments-toggle" @click="toggleComments(story)" :aria-expanded="story.commentsVisible || false">
+                  {{ story.commentsVisible ? 'Hide comments' : `Show comments (${story.descendants || 0})` }}
+                </button>
+                <a class="discussion" :href="discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">Open on HN ↗</a>
+              </div>
+              <section v-if="story.commentsVisible" class="comments" :aria-label="`Comments on ${story.title}`">
+                <p v-if="story.commentsLoading" class="comment-status">Loading comments…</p>
+                <p v-else-if="!story.comments.length" class="comment-status">No comments yet.</p>
+                <hn-comment v-else v-for="comment in story.comments" :key="comment.id" :comment="comment"></hn-comment>
+              </section>
+            </article>
+          </li>
+        </ol>
+      </main>
+
+      <footer></footer>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+      const { createApp } = Vue;
+      const API_ROOT = 'https://hacker-news.firebaseio.com/v0';
+
+      function cleanCommentHtml(html = '') {
+        const documentFragment = new DOMParser().parseFromString(html, 'text/html');
+        const allowed = new Set(['P', 'PRE', 'CODE', 'EM', 'STRONG', 'I', 'B', 'A']);
+        documentFragment.body.querySelectorAll('*').forEach((element) => {
+          if (!allowed.has(element.tagName)) {
+            element.replaceWith(...element.childNodes);
+            return;
+          }
+          if (element.tagName === 'A') {
+            const href = element.getAttribute('href');
+            [...element.attributes].forEach((attribute) => element.removeAttribute(attribute.name));
+            if (href && /^(https?:|mailto:)/i.test(href)) {
+              element.setAttribute('href', href);
+              element.setAttribute('target', '_blank');
+              element.setAttribute('rel', 'noopener noreferrer');
+            } else {
+              element.replaceWith(...element.childNodes);
+            }
+          } else {
+            [...element.attributes].forEach((attribute) => element.removeAttribute(attribute.name));
+          }
+        });
+        return documentFragment.body.innerHTML;
+      }
+
+      function commentText(html = '') {
+        return new DOMParser().parseFromString(html, 'text/html').body.textContent.replace(/\s+/g, ' ').trim();
+      }
+
+      function compactTime(timestamp) {
+        if (!Number.isFinite(timestamp)) return '';
+        const seconds = Math.max(0, Math.floor(Date.now() / 1000) - timestamp);
+        if (seconds < 60) return 'now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+        if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
+        if (seconds < 2592000) return `${Math.floor(seconds / 604800)}w`;
+        return `${Math.floor(seconds / 2592000)}mo`;
+      }
+
+      const HnComment = {
+        name: 'HnComment',
+        props: { comment: { type: Object, required: true } },
+        data: () => ({ replies: null, loading: false, expanded: false, bodyExpanded: false }),
+        computed: {
+          replyLabel() {
+            const count = this.comment.kids?.length || 0;
+            return this.expanded ? 'Hide replies' : `Show ${count} ${count === 1 ? 'reply' : 'replies'}`;
+          },
+          preview() {
+            return commentText(this.comment.text);
+          }
+        },
+        template: `
+          <article class="comment">
+            <p class="comment-line">
+              <span class="comment-meta">{{ comment.by || 'unknown' }} · {{ compactTime(comment.time) }}</span>
+              <span v-if="!bodyExpanded" class="comment-preview">{{ preview }}</span>
+              <button v-if="!bodyExpanded && preview" type="button" class="body-toggle" @click="bodyExpanded = true">More</button>
+              <button v-if="bodyExpanded" type="button" class="body-toggle" @click="bodyExpanded = false">Less</button>
+              <button v-if="comment.kids?.length" type="button" class="reply-toggle" @click="toggleReplies" :aria-expanded="expanded">{{ replyLabel }}</button>
+            </p>
+            <div v-if="bodyExpanded" class="comment-body" v-html="cleanCommentHtml(comment.text)"></div>
+            <p v-if="loading" class="comment-status">Loading replies…</p>
+            <div v-if="expanded && replies" class="replies">
+              <hn-comment v-for="reply in replies" :key="reply.id" :comment="reply"></hn-comment>
+            </div>
+          </article>
+        `,
+        methods: {
+          cleanCommentHtml,
+          compactTime,
+          async toggleReplies() {
+            this.expanded = !this.expanded;
+            if (!this.expanded || this.replies !== null) return;
+            this.loading = true;
+            try {
+              const replies = await Promise.all(this.comment.kids.map(fetchItem));
+              this.replies = replies.filter((reply) => reply && reply.type === 'comment' && !reply.deleted);
+            } finally {
+              this.loading = false;
+            }
+          }
+        }
+      };
+
+      async function fetchItem(id) {
+        const response = await fetch(`${API_ROOT}/item/${id}.json`);
+        if (!response.ok) throw new Error('Hacker News is unavailable.');
+        return response.json();
+      }
+
+      createApp({
+        data: () => ({ stories: [], loading: true, error: '' }),
+        mounted() { this.loadStories(); },
+        methods: {
+          discussionUrl(id) { return `https://news.ycombinator.com/item?id=${id}`; },
+          compactTime,
+          displayUrl(url) {
+            try { return new URL(url).hostname.replace(/^www\./, ''); }
+            catch (_) { return url; }
+          },
+          async toggleComments(story) {
+            story.commentsVisible = !story.commentsVisible;
+            if (!story.commentsVisible || story.comments) return;
+            story.commentsLoading = true;
+            try {
+              const comments = await Promise.all((story.kids || []).map(fetchItem));
+              story.comments = comments.filter((comment) => comment && comment.type === 'comment' && !comment.deleted);
+            } catch (_) {
+              story.comments = [];
+            } finally {
+              story.commentsLoading = false;
+            }
+          },
+          async loadStories() {
+            this.loading = true;
+            this.error = '';
+            try {
+              const ids = await fetch(`${API_ROOT}/topstories.json`).then((response) => {
+                if (!response.ok) throw new Error('Hacker News is unavailable.');
+                return response.json();
+              });
+              const stories = await Promise.all(ids.slice(0, 20).map(fetchItem));
+              this.stories = stories.filter((story) => story && story.type === 'story').map((story) => ({
+                ...story, comments: null, commentsLoading: false, commentsVisible: false
+              }));
+            } catch (_) {
+              this.error = 'Could not load Hacker News right now. Please try again shortly.';
+            } finally {
+              this.loading = false;
+            }
+          }
+        },
+        components: { HnComment }
+      }).mount('#app');
+    </script>
+  </body>
+</html>

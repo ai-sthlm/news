@@ -45,7 +45,8 @@ GitHub Pages source before the first deployment.
   screen without a pagination round trip.
 - **Filter without refetching.** Score controls beside Refresh filter the
   currently loaded stories at 100+, 200+, 300+, 400+, and 500+ points; “All”
-  restores the full 100-story window.
+  restores the full 100-story window. Filtering never changes a story's
+  original Hacker News rank.
 - **Separate the two destinations clearly.** A story title opens its Hacker
   News item and discussion; the linked domain opens the original article. This
   makes discussion the primary interaction without hiding the source.

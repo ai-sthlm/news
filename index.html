@@ -43,8 +43,8 @@
         <p v-if="!loading && !error && stories.length && !filteredStories.length" class="notice">No loaded stories meet this score.</p>
 
         <ol v-if="filteredStories.length" class="stories">
-          <li v-for="(story, index) in filteredStories" :key="story.id" class="story" :class="{ 'is-open': story.commentsVisible }">
-            <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
+          <li v-for="story in filteredStories" :key="story.id" class="story" :class="{ 'is-open': story.commentsVisible }">
+            <span class="rank" aria-hidden="true">{{ story.rank }}</span>
             <article>
               <h3 class="story-heading">
                 <a :href="discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">{{ story.title }}</a>
@@ -232,9 +232,9 @@
               for (let page = 0; page < PAGE_COUNT; page += 1) {
                 const start = page * STORIES_PER_PAGE;
                 const stories = await Promise.all(ids.slice(start, start + STORIES_PER_PAGE).map(fetchItem));
-                this.stories.push(...stories.filter((story) => story && story.type === 'story').map((story) => ({
-                  ...story, comments: null, commentsLoading: false, commentsVisible: false
-                })));
+                this.stories.push(...stories.map((story, index) => story && story.type === 'story' ? ({
+                  ...story, rank: start + index + 1, comments: null, commentsLoading: false, commentsVisible: false
+                }) : null).filter(Boolean));
               }
             } catch (_) {
               this.error = 'Could not load Hacker News right now. Please try again shortly.';

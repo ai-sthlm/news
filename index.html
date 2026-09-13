@@ -25,15 +25,13 @@
 
       <main>
         <div class="feed-heading">
-          <h2>Hacker News · Top 100</h2>
-          <div class="feed-controls">
-            <div class="score-filters" aria-label="Minimum story score">
+          <h2>Hacker News <span class="feed-subtitle">Top 100</span></h2>
+            <div class="score-filters" role="group" aria-label="Minimum story score">
               <button v-for="score in scoreFilters" :key="score" type="button" class="score-filter" :class="{ active: minimumScore === score }" :aria-pressed="minimumScore === score" @click="minimumScore = score">{{ score ? `${score}+` : 'All' }}</button>
             </div>
             <button type="button" class="refresh" @click="loadStories" :disabled="loading">
               {{ loading ? 'Loading…' : 'Refresh' }}
             </button>
-          </div>
         </div>
 
         <p v-if="error" class="notice">{{ error }}</p>

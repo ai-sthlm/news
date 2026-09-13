@@ -15,7 +15,6 @@
     <div id="app" class="shell">
       <nav class="masthead" aria-label="Main navigation">
         <a class="brand" href="https://ai-sthlm.github.io/">AI Sthlm</a>
-        <a class="source-link" href="https://news.ycombinator.com/" target="_blank" rel="noopener noreferrer">Hacker News ↗</a>
       </nav>
 
       <header class="hero">
@@ -129,6 +128,7 @@
             const directCount = this.comment.kids?.length || 0;
             if (!directCount) return '';
             if (this.subtreeCount === null) return `· ${directCount} ${directCount === 1 ? 'reply' : 'replies'}`;
+            if (this.subtreeCount === directCount) return `· ${directCount} ${directCount === 1 ? 'reply' : 'replies'}`;
             return `· ${directCount} ${directCount === 1 ? 'reply' : 'replies'} · ${this.subtreeCount} total`;
           }
         },
@@ -138,7 +138,6 @@
               <span class="comment-meta"><span class="comment-author">{{ comment.by || 'unknown' }}</span><span class="comment-time"> · {{ compactTime(comment.time) }}</span></span>
               <span v-if="replySummary" class="reply-summary">{{ replySummary }}</span>
               <span v-if="!bodyExpanded" class="comment-preview">{{ preview }}</span>
-              <span class="comment-state" aria-hidden="true">{{ bodyExpanded ? '−' : '+' }}</span>
             </button>
             <div v-if="bodyExpanded" class="comment-body" v-html="cleanCommentHtml(comment.text)"></div>
             <p v-if="loading" class="comment-status">Loading replies…</p>

@@ -28,6 +28,11 @@ original publisher and Hacker News as the source of truth.
   [ai-sthlm/assets](https://github.com/ai-sthlm/assets) via its GitHub Pages
   URLs; do not duplicate those assets in this repository.
 
+## Local preview
+
+Run `make serve` and open <http://localhost:8000>. This uses Python’s built-in
+HTTP server to serve the project directly; no build step is required.
+
 ## Deployment
 
 The site is deployed as static files through GitHub Pages. The workflow in

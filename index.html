@@ -23,15 +23,18 @@
         <p class="intro"></p>
       </header>
 
-      <main>
+      <main :class="{ 'large-titles': largeTitles }">
         <div class="feed-heading">
           <h2>Hacker News <span class="feed-subtitle">Top 100</span></h2>
             <div class="score-filters" role="group" aria-label="Minimum story score">
               <button v-for="score in scoreFilters" :key="score" type="button" class="score-filter" :class="{ active: minimumScore === score }" :aria-pressed="minimumScore === score" @click="minimumScore = score">{{ score ? `${score}+` : 'All' }}</button>
             </div>
-            <button type="button" class="refresh" @click="loadStories" :disabled="loading">
-              {{ loading ? 'Loading…' : 'Refresh' }}
-            </button>
+            <div class="feed-actions">
+              <button type="button" class="title-size" :aria-pressed="largeTitles" aria-label="Larger story titles" :title="largeTitles ? 'Use standard title size' : 'Use larger title size'" @click="toggleTitleSize">A+</button>
+              <button type="button" class="refresh" @click="loadStories" :disabled="loading">
+                {{ loading ? 'Loading…' : 'Refresh' }}
+              </button>
+            </div>
         </div>
 
         <p v-if="error" class="notice">{{ error }}</p>
@@ -191,14 +194,21 @@
       }
 
       createApp({
-        data: () => ({ stories: [], loading: true, error: '', minimumScore: 0, scoreFilters: [0, 100, 200, 300, 400, 500] }),
-        mounted() { this.loadStories(); },
+        data: () => ({ stories: [], loading: true, error: '', minimumScore: 0, scoreFilters: [0, 100, 200, 300, 400, 500], largeTitles: false }),
+        mounted() {
+          try { this.largeTitles = localStorage.getItem('news-large-titles') === 'true'; } catch (_) {}
+          this.loadStories();
+        },
         computed: {
           filteredStories() {
             return this.stories.filter((story) => story.score >= this.minimumScore);
           }
         },
         methods: {
+          toggleTitleSize() {
+            this.largeTitles = !this.largeTitles;
+            try { localStorage.setItem('news-large-titles', String(this.largeTitles)); } catch (_) {}
+          },
           discussionUrl(id) { return `https://news.ycombinator.com/item?id=${id}`; },
           compactTime,
           displayUrl(url) {

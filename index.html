@@ -43,7 +43,7 @@
                 <a :href="discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">{{ story.title }}</a>
                 <a v-if="story.url" class="source-url" :href="story.url" target="_blank" rel="noopener noreferrer">{{ displayUrl(story.url) }}</a>
                 <span class="story-inline-meta">
-                  {{ story.score }} points ·
+                  · {{ story.score }} points ·
                   <button type="button" class="comments-toggle" @click="toggleComments(story)" :aria-expanded="story.commentsVisible || false" :aria-label="`${story.commentsVisible ? 'Hide' : 'Show'} ${story.descendants || 0} comments`">{{ story.descendants || 0 }} comments</button>
                   · {{ story.by }} · {{ compactTime(story.time) }}
                 </span>
@@ -119,8 +119,8 @@
           replySummary() {
             const directCount = this.comment.kids?.length || 0;
             if (!directCount) return '';
-            if (this.subtreeCount === null) return `${directCount} ${directCount === 1 ? 'reply' : 'replies'}`;
-            return `${directCount} ${directCount === 1 ? 'reply' : 'replies'} · ${this.subtreeCount} total`;
+            if (this.subtreeCount === null) return `· ${directCount} ${directCount === 1 ? 'reply' : 'replies'}`;
+            return `· ${directCount} ${directCount === 1 ? 'reply' : 'replies'} · ${this.subtreeCount} total`;
           }
         },
         template: `

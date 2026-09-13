@@ -41,7 +41,7 @@ h3 { max-width: 900px; margin: 0; font-size: clamp(17px, 2.2vw, 21px); font-weig
 .comment-body p { margin: 0 0 8px; }
 .comment-body pre { overflow-x: auto; padding: 8px; background: #0d1c28; font-size: 11px; }
 .comment-body a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-.replies { margin: 10px 0 0 14px; padding-left: 12px; border-left: 1px solid var(--line); }
+.replies { margin: 10px 0 0 0; padding-left: 12px; border-left: 1px solid var(--line); }
 .comment-status { margin: 8px 0; color: var(--muted); font-size: 12px; }
 .notice { padding: 32px 0; color: var(--muted); }
 footer { padding: 32px 0 40px; color: var(--muted); font-size: 11px; }

@@ -35,6 +35,32 @@ The site is deployed as static files through GitHub Pages. The workflow in
 default branch. In repository settings, select **GitHub Actions** as the
 GitHub Pages source before the first deployment.
 
+## Design decisions
+
+- **Keep the feed dense.** A story's title, linked domain, score, comment
+  count, author, and compact relative time share one flowing line. The layout
+  may wrap on small screens, but it should not become a card-heavy feed.
+- **Separate the two destinations clearly.** A story title opens its Hacker
+  News item and discussion; the linked domain opens the original article. This
+  makes discussion the primary interaction without hiding the source.
+- **Treat the comment count as the discussion control.** Clicking it loads the
+  top-level comments under that story. There is no separate “open on HN” action
+  in the current UI.
+- **Reveal discussion progressively.** Comments are initially one ellipsized
+  row. Clicking the row expands its full, sanitized body and loads its direct
+  replies in one action. The same interaction works recursively for replies.
+- **Show useful thread context while collapsed.** Every comment shows its
+  author, compact time, direct reply count, and—once the background count
+  completes—the total number of descendants in that thread. HN exposes only
+  direct child IDs, so totals require recursive API reads; cache item requests
+  to avoid fetching the same item twice.
+- **Keep dividers quiet.** Comments use top borders only, so the last comment
+  does not create a doubled rule with the next story. Comment time uses the
+  same muted color as story points.
+- **Optimize the small screen deliberately.** Comment previews ellipsize to
+  the available width, touch targets remain usable, and expanded discussion
+  text increases in size and line height for reading on mobile.
+
 ## Scope for the first version
 
 The first version should support browsing a useful Hacker News feed, viewing

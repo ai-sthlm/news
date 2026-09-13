@@ -40,8 +40,8 @@
             <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
             <article>
               <h3 class="story-heading">
-                <a :href="story.url || discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">{{ story.title }}</a>
-                <span v-if="story.url" class="source-url">{{ displayUrl(story.url) }}</span>
+                <a :href="discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">{{ story.title }}</a>
+                <a v-if="story.url" class="source-url" :href="story.url" target="_blank" rel="noopener noreferrer">{{ displayUrl(story.url) }}</a>
                 <span class="story-inline-meta">
                   {{ story.score }} points ·
                   <button type="button" class="comments-toggle" @click="toggleComments(story)" :aria-expanded="story.commentsVisible || false" :aria-label="`${story.commentsVisible ? 'Hide' : 'Show'} ${story.descendants || 0} comments`">{{ story.descendants || 0 }} comments</button>
@@ -65,6 +65,7 @@
     <script>
       const { createApp } = Vue;
       const API_ROOT = 'https://hacker-news.firebaseio.com/v0';
+      const itemRequests = new Map();
 
       function cleanCommentHtml(html = '') {
         const documentFragment = new DOMParser().parseFromString(html, 'text/html');
@@ -109,7 +110,8 @@
       const HnComment = {
         name: 'HnComment',
         props: { comment: { type: Object, required: true } },
-        data: () => ({ replies: null, loading: false, expanded: false, bodyExpanded: false, subtreeCount: null }),
+        data: () => ({ replies: null, loading: false, expanded: false, bodyExpanded: false, subtreeCount: null, statsPromise: null }),
+        mounted() { this.loadReplyStats(); },
         computed: {
           preview() {
             return commentText(this.comment.text);
@@ -117,16 +119,16 @@
           replySummary() {
             const directCount = this.comment.kids?.length || 0;
             if (!directCount) return '';
-            if (this.subtreeCount === null) return `${directCount} direct ${directCount === 1 ? 'reply' : 'replies'}`;
-            return `${directCount} direct · ${this.subtreeCount} total`;
+            if (this.subtreeCount === null) return `${directCount} ${directCount === 1 ? 'reply' : 'replies'}`;
+            return `${directCount} ${directCount === 1 ? 'reply' : 'replies'} · ${this.subtreeCount} total`;
           }
         },
         template: `
           <article class="comment">
             <button type="button" class="comment-line" @click="toggleDiscussion" :aria-expanded="bodyExpanded">
               <span class="comment-meta"><span class="comment-author">{{ comment.by || 'unknown' }}</span><span class="comment-time"> · {{ compactTime(comment.time) }}</span></span>
-              <span v-if="!bodyExpanded" class="comment-preview">{{ preview }}</span>
               <span v-if="replySummary" class="reply-summary">{{ replySummary }}</span>
+              <span v-if="!bodyExpanded" class="comment-preview">{{ preview }}</span>
               <span class="comment-state" aria-hidden="true">{{ bodyExpanded ? '−' : '+' }}</span>
             </button>
             <div v-if="bodyExpanded" class="comment-body" v-html="cleanCommentHtml(comment.text)"></div>
@@ -139,6 +141,14 @@
         methods: {
           cleanCommentHtml,
           compactTime,
+          loadReplyStats() {
+            if (!this.comment.kids?.length || this.statsPromise) return this.statsPromise;
+            this.statsPromise = Promise.all(this.comment.kids.map(fetchItem))
+              .then(countCommentTree)
+              .then((count) => { this.subtreeCount = count; })
+              .catch(() => {});
+            return this.statsPromise;
+          },
           async toggleDiscussion() {
             this.bodyExpanded = !this.bodyExpanded;
             this.expanded = this.bodyExpanded;
@@ -147,7 +157,7 @@
             try {
               const replies = await Promise.all(this.comment.kids.map(fetchItem));
               this.replies = replies.filter((reply) => reply && reply.type === 'comment' && !reply.deleted);
-              countCommentTree(this.replies).then((count) => { this.subtreeCount = count; }).catch(() => {});
+              this.loadReplyStats();
             } finally {
               this.loading = false;
             }
@@ -155,10 +165,14 @@
         }
       };
 
-      async function fetchItem(id) {
-        const response = await fetch(`${API_ROOT}/item/${id}.json`);
-        if (!response.ok) throw new Error('Hacker News is unavailable.');
-        return response.json();
+      function fetchItem(id) {
+        if (!itemRequests.has(id)) {
+          itemRequests.set(id, fetch(`${API_ROOT}/item/${id}.json`).then((response) => {
+            if (!response.ok) throw new Error('Hacker News is unavailable.');
+            return response.json();
+          }));
+        }
+        return itemRequests.get(id);
       }
 
       async function countCommentTree(comments) {

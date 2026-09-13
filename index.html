@@ -39,17 +39,15 @@
           <li v-for="(story, index) in stories" :key="story.id" class="story">
             <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
             <article>
-              <h3>
+              <h3 class="story-heading">
                 <a :href="story.url || discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">{{ story.title }}</a>
+                <span v-if="story.url" class="source-url">{{ displayUrl(story.url) }}</span>
+                <span class="story-inline-meta">
+                  {{ story.score }} points ·
+                  <button type="button" class="comments-toggle" @click="toggleComments(story)" :aria-expanded="story.commentsVisible || false" :aria-label="`${story.commentsVisible ? 'Hide' : 'Show'} ${story.descendants || 0} comments`">{{ story.descendants || 0 }} comments</button>
+                  · {{ story.by }} · {{ compactTime(story.time) }}
+                </span>
               </h3>
-              <p v-if="story.url" class="source-url">{{ displayUrl(story.url) }}</p>
-              <div class="story-meta-row">
-                <span class="meta">{{ story.score }} points · {{ story.descendants || 0 }} comments · {{ story.by }} · {{ compactTime(story.time) }}</span>
-                <button type="button" class="comments-toggle" @click="toggleComments(story)" :aria-expanded="story.commentsVisible || false">
-                  {{ story.commentsVisible ? 'Hide comments' : `Show comments (${story.descendants || 0})` }}
-                </button>
-                <a class="discussion" :href="discussionUrl(story.id)" target="_blank" rel="noopener noreferrer">Open on HN ↗</a>
-              </div>
               <section v-if="story.commentsVisible" class="comments" :aria-label="`Comments on ${story.title}`">
                 <p v-if="story.commentsLoading" class="comment-status">Loading comments…</p>
                 <p v-else-if="!story.comments.length" class="comment-status">No comments yet.</p>
@@ -111,17 +109,24 @@
       const HnComment = {
         name: 'HnComment',
         props: { comment: { type: Object, required: true } },
-        data: () => ({ replies: null, loading: false, expanded: false, bodyExpanded: false }),
+        data: () => ({ replies: null, loading: false, expanded: false, bodyExpanded: false, subtreeCount: null }),
         computed: {
           preview() {
             return commentText(this.comment.text);
+          },
+          replySummary() {
+            const directCount = this.comment.kids?.length || 0;
+            if (!directCount) return '';
+            if (this.subtreeCount === null) return `${directCount} direct ${directCount === 1 ? 'reply' : 'replies'}`;
+            return `${directCount} direct · ${this.subtreeCount} total`;
           }
         },
         template: `
           <article class="comment">
             <button type="button" class="comment-line" @click="toggleDiscussion" :aria-expanded="bodyExpanded">
-              <span class="comment-meta">{{ comment.by || 'unknown' }} · {{ compactTime(comment.time) }}</span>
+              <span class="comment-meta"><span class="comment-author">{{ comment.by || 'unknown' }}</span><span class="comment-time"> · {{ compactTime(comment.time) }}</span></span>
               <span v-if="!bodyExpanded" class="comment-preview">{{ preview }}</span>
+              <span v-if="replySummary" class="reply-summary">{{ replySummary }}</span>
               <span class="comment-state" aria-hidden="true">{{ bodyExpanded ? '−' : '+' }}</span>
             </button>
             <div v-if="bodyExpanded" class="comment-body" v-html="cleanCommentHtml(comment.text)"></div>
@@ -142,6 +147,7 @@
             try {
               const replies = await Promise.all(this.comment.kids.map(fetchItem));
               this.replies = replies.filter((reply) => reply && reply.type === 'comment' && !reply.deleted);
+              countCommentTree(this.replies).then((count) => { this.subtreeCount = count; }).catch(() => {});
             } finally {
               this.loading = false;
             }
@@ -153,6 +159,14 @@
         const response = await fetch(`${API_ROOT}/item/${id}.json`);
         if (!response.ok) throw new Error('Hacker News is unavailable.');
         return response.json();
+      }
+
+      async function countCommentTree(comments) {
+        const liveComments = comments.filter((comment) => comment && comment.type === 'comment' && !comment.deleted);
+        const childIds = liveComments.flatMap((comment) => comment.kids || []);
+        if (!childIds.length) return liveComments.length;
+        const children = await Promise.all(childIds.map(fetchItem));
+        return liveComments.length + await countCommentTree(children);
       }
 
       createApp({
